@@ -1,0 +1,12 @@
+[package]
+name = "uuid"
+version = "0.1.0"
+
+[module]
+roots = ["./src", "../coil-crypto/src"]
+
+[ffi]
+search_paths = ["../coil-crypto/native"]
+
+[dependencies]
+crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", trusted = true }
