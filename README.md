@@ -39,13 +39,13 @@ v3 / v5 are omitted: coil-crypto has no MD5 or SHA-1. v2 and v8 are omitted.
 
 ## Consume
 
-Sibling checkout of this private repo plus coil-crypto and coil-time. Typecheck grants are `--allow-dload crypto` and `--allow-dload time`. Details in [docs/consume.md](docs/consume.md).
+Sibling checkout of this private repo plus coil-crypto and coil-time. Typecheck grant is `--allow-dload crypto` only. coil-time is pure Coil (HostInvoke clocks; no `libtime`). Details in [docs/consume.md](docs/consume.md).
 
 ```toml
 [dependencies]
 uuid = { git = "https://github.com/ardax-corp/coil-uuid.git" }
 crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", trusted = true }
-time = { git = "https://github.com/ardax-corp/coil-time.git", trusted = true }
+time = { git = "https://github.com/ardax-corp/coil-time.git" }
 ```
 
 `{ git }` is the parseable form. `version` is optional schema, not a tag. The pin is `coil.lock` `rev` + `content_hash`. The compiler does not follow path deps; `--root` / roots must include crypto and time `src/`.
