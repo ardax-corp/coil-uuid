@@ -51,7 +51,6 @@ jobs:
           workspaces: |
             .ci/coil-lang
             .ci/coil-crypto/native
-            .ci/coil-time/native
 
       - name: Build coil
         run: cargo build --bin coil --manifest-path .ci/coil-lang/Cargo.toml
@@ -64,16 +63,10 @@ jobs:
         working-directory: .ci/coil-crypto
         run: cp native/target/release/libcrypto.so native/
 
-      - name: Native time
-        run: make
-        working-directory: .ci/coil-time
-
       - name: Language harness (`coil test`)
         run: |
           .ci/coil-lang/target/debug/coil test \
             --allow-dload crypto \
-            --allow-dload time \
             --ffi-search-path .ci/coil-crypto/native \
-            --ffi-search-path .ci/coil-time/native \
             --root .ci/coil-crypto/src \
             --root .ci/coil-time/src
