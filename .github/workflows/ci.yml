@@ -54,7 +54,7 @@ jobs:
       - name: Language harness (`coil test`)
         run: |
           coil test \
-            --allow-dload crypto \
+            --allow-dload crypto --dload-trusted crypto \
             --ffi-search-path .ci/coil-crypto/native \
             --root .ci/coil-crypto/src \
             --root .ci/coil-time/src
