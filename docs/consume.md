@@ -40,11 +40,11 @@ crypto = { path = "../coil-crypto", trusted = true }
 time = { path = "../coil-time" }
 ```
 
-`[dependencies] … path` is spool metadata. The compiler does not follow path deps for discovery. `roots` is what loads `src/uuid.hy`, `src/crypto.hy`, and `src/time.hy`. Build `libcrypto` from the crypto package root (`make`). Grant only crypto dload:
+`[dependencies] … path` is spool metadata. The compiler does not follow path deps for discovery. `roots` is what loads `src/uuid.hy`, `src/crypto.hy`, and `src/time.hy`. Build `libcrypto` from the crypto package root (`make`). Grant only crypto dload. Running `coil` directly, also pass `--dload-trusted crypto` (spool derives it from `trusted = true` on the crypto dependency):
 
 ```bash
 coil test \
-  --allow-dload crypto \
+  --allow-dload crypto --dload-trusted crypto \
   --ffi-search-path ../coil-crypto/native \
   --root ../coil-crypto/src --root ../coil-time/src
 ```
