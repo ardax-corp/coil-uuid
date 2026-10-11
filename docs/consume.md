@@ -2,9 +2,7 @@
 
 This package is `uuid`. `use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError}` resolves from `src/uuid.hy`. This GitHub repository is **private**; clone with credentials that can read `ardax-corp/coil-uuid`.
 
-Generators call public [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (CSPRNG). Time-based versions call public [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. The compiler does not follow path deps: `roots` / `--root` must include crypto `src/` and time `src/` so `use crypto` / `use time` resolve. Typecheck grant is CLI `--allow-dload crypto`. coil-time is pure Coil (HostInvoke clocks); there is no `--allow-dload time` and no `libtime`. Do not treat `[ffi] allow` as a compiler grant. `[ffi] search_paths` locates `libcrypto`. Runtime integrity for crypto is `trusted = true` (or `coil.lock` native `sha256`).
-
-Coil-to-Coil deps will be spool-owned once a public `spool` CLI exists. Until [COI-219](https://linear.app/ardax/issue/COI-219) `{ git }` parses and the pin is `coil.lock` `rev` + `content_hash`. Do not run `spool add`.
+Generators call public [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (CSPRNG). Time-based versions call public [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. coil reads no `coil.toml`: `--root` must include crypto `src/` and time `src/` so `use crypto` / `use time` resolve. The crypto grant is `--allow-dload crypto` plus `--dload-trusted crypto` (or `--dload-pin crypto=SHA256`); `--ffi-search-path` locates `libcrypto`. coil-time is pure Coil (HostInvoke clocks); there is no `--allow-dload time` and no `libtime`.
 
 ## Versions
 
@@ -25,28 +23,13 @@ Clock failure is `UuidError::Time`. CSPRNG failure is `UuidError::Entropy`. Malf
 
 ## Sibling checkout
 
-Clone this private repo next to your project, coil-crypto, and coil-time. In the consumer `coil.toml`:
-
-```toml
-[module]
-roots = ["./src", "../coil-uuid/src", "../coil-crypto/src", "../coil-time/src"]
-
-[ffi]
-search_paths = ["../coil-crypto/native"]
-
-[dependencies]
-uuid = { path = "../coil-uuid" }
-crypto = { path = "../coil-crypto", trusted = true }
-time = { path = "../coil-time" }
-```
-
-`[dependencies] … path` is spool metadata. The compiler does not follow path deps for discovery. `roots` is what loads `src/uuid.hy`, `src/crypto.hy`, and `src/time.hy`. Build `libcrypto` from the crypto package root (`make`). Grant only crypto dload. Running `coil` directly, also pass `--dload-trusted crypto` (spool derives it from `trusted = true` on the crypto dependency):
+Clone this private repo next to your project, coil-crypto, and coil-time. Build `libcrypto` from the crypto package root (`make -C ../coil-crypto`). Grant only crypto dload:
 
 ```bash
 coil test \
   --allow-dload crypto --dload-trusted crypto \
   --ffi-search-path ../coil-crypto/native \
-  --root ../coil-crypto/src --root ../coil-time/src
+  --root ../coil-uuid/src --root ../coil-crypto/src --root ../coil-time/src
 ```
 
 Then:
@@ -61,49 +44,21 @@ let again = parse("550e8400-e29b-41d4-a716-446655440000")?;
 
 `parse` takes hyphenated `8-4-4-4-12` hex. `to_string` emits that form in lowercase.
 
-## Git dep and coil.lock
+## With spool
 
-`{ git }` is the parseable form. `version` is optional schema, not a tag. `rev` on the dep is stored only. Do not run `spool add`. This uuid repo is private; crypto and time are public.
+```bash
+spool add uuid --git https://github.com/ardax-corp/coil-uuid.git --rev <commit SHA>
+```
+
+spool would write `coil.lock`, link `.spool/deps/{uuid,crypto,time}` and pass their `--root`s. Today this fails: this repo's `coil.toml` declares `crypto` and `time` as git deps with no `version` or `rev`, neither repo has tags, so spool finds no matching tag. Until they are tagged (or pinned here), use the sibling checkout. With spool, the consumer `coil.toml` still needs the crypto grant and search path:
 
 ```toml
-[dependencies]
-uuid = { git = "https://github.com/ardax-corp/coil-uuid.git" }
-crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", trusted = true }
-time = { git = "https://github.com/ardax-corp/coil-time.git" }
-
-[module]
-roots = ["./src", "./.spool/deps/uuid/src", "./.spool/deps/crypto/src", "./.spool/deps/time/src"]
-
 [ffi]
-search_paths = ["./.spool/deps/crypto/native"]
+search_paths = ["../coil-crypto/native"]
+allow = ["crypto"]
 ```
 
-Neither public dep has tags. The pin is `coil.lock` `rev` + `content_hash`. Omit `tag`. Use sibling checkout until spool materializes `.spool/deps`. The compiler does not read `coil.lock` for module roots and does not inject them.
-
-```
-# spool lockfile v1
-[[package]]
-name = 'uuid'
-git = 'https://github.com/ardax-corp/coil-uuid.git'
-rev = '<commit SHA>'
-content_hash = '<tree SHA>'
-
-[[package]]
-name = 'crypto'
-git = 'https://github.com/ardax-corp/coil-crypto.git'
-rev = '9050ef96c04e05950a17b9aa4ab3d1ece58dd486'
-content_hash = '1ce39b8d0b64c2b66e76034d0b6f033f7ed800c1'
-
-[[package]]
-name = 'time'
-git = 'https://github.com/ardax-corp/coil-time.git'
-rev = '11492b20954fd803dba3fd84320653f3866d5e6f'
-content_hash = '85a76160516d5806d81c44e526e5a23e619b515f'
-```
-
-`rev` is the commit. `content_hash` is that commit’s git tree (`git rev-parse 'HEAD^{tree}'`). Replace both when you move the pin. Crypto values above are `main` at `9050ef9`. Time values are `main` at `11492b2`. Examples, not releases.
-
-If you vendor those revs yourself, `.spool/deps/{uuid,crypto,time}` matches the later spool layout. `make -C .spool/deps/crypto` copies `libcrypto.so` into crypto `native/`. coil-time has no native artifact.
+plus `trusted = true` on a `crypto` dependency (or a `[[package.native]]` `sha256` row for it in `coil.lock`).
 
 ## Call it
 

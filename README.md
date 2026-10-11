@@ -35,20 +35,11 @@ v3 / v5 are omitted: coil-crypto has no MD5 or SHA-1. v2 and v8 are omitted.
 | Path | Role |
 |------|------|
 | `src/uuid.hy` | `Uuid`, `UuidError`, `v1` / `v4` / `v6` / `v7`, `parse` |
-| `coil.toml` | `[package] name = "uuid"` so `use uuid::{…}` resolves |
+| `coil.toml` | spool manifest (`[package] name = "uuid"`); coil does not read it |
 
 ## Consume
 
-Sibling checkout of this private repo plus coil-crypto and coil-time. Typecheck grant is `--allow-dload crypto` only. coil-time is pure Coil (HostInvoke clocks; no `libtime`). Details in [docs/consume.md](docs/consume.md).
-
-```toml
-[dependencies]
-uuid = { git = "https://github.com/ardax-corp/coil-uuid.git" }
-crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", trusted = true }
-time = { git = "https://github.com/ardax-corp/coil-time.git" }
-```
-
-`{ git }` is the parseable form. `version` is optional schema, not a tag. The pin is `coil.lock` `rev` + `content_hash`. The compiler does not follow path deps; `--root` / roots must include crypto and time `src/`.
+Sibling checkout of this private repo plus coil-crypto and coil-time, passed as `--root`. The crypto grant is `--allow-dload crypto` plus `--dload-trusted crypto` (or `--dload-pin`). coil-time is pure Coil (HostInvoke clocks; no `libtime`). `spool add uuid` fails until coil-crypto and coil-time have tags (this repo's `coil.toml` names them without a `rev`). Details in [docs/consume.md](docs/consume.md).
 
 ## License
 
