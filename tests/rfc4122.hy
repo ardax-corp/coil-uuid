@@ -1,4 +1,5 @@
 // Parse round-trip and RFC 4122 / 9562 version / variant bits.
+use tests::assert;
 use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError};
 use time::{sleep_ms};
 
@@ -51,12 +52,12 @@ fn unix_ms48(Uuid u) -> int {
 test("parse round-trip canonical") {
     let s = "550e8400-e29b-41d4-a716-446655440000";
     let u = must_parse(s);
-    assert(u.to_string() == s, "round-trip")?;
+    assert!(u.to_string() == s, "round-trip");
 }
 
 test("parse upper case") {
     let u = must_parse("550E8400-E29B-41D4-A716-446655440000");
-    assert(u.to_string() == "550e8400-e29b-41d4-a716-446655440000", "lower")?;
+    assert!(u.to_string() == "550e8400-e29b-41d4-a716-446655440000", "lower");
 }
 
 test("parse rejects short") {
@@ -91,54 +92,54 @@ test("parse rejects bad hex") {
 
 test("v4 version nibble is 4") {
     let u = must_v4();
-    assert(u.version() == 4, "version")?;
+    assert!(u.version() == 4, "version");
     let s = u.to_string();
     let again = must_parse(s);
-    assert(again.to_string() == s, "v4 round-trip")?;
-    assert(again.version() == 4, "parsed version")?;
+    assert!(again.to_string() == s, "v4 round-trip");
+    assert!(again.version() == 4, "parsed version");
 }
 
 test("v4 rfc variant bits 10xx") {
     let u = must_v4();
-    assert(u.variant() == 2, "variant 10")?;
+    assert!(u.variant() == 2, "variant 10");
     let b = u.bytes;
-    assert(len(b) == 16, "16 bytes")?;
+    assert!(len(b) == 16, "16 bytes");
     let nibble = (b[8] as int) / 16;
-    assert(nibble >= 8, "variant nibble 8-b")?;
-    assert(nibble <= 11, "variant nibble not c-f")?;
+    assert!(nibble >= 8, "variant nibble 8-b");
+    assert!(nibble <= 11, "variant nibble not c-f");
 }
 
 test("eq same octets") {
     let a = must_parse("550e8400-e29b-41d4-a716-446655440000");
     let b = must_parse("550E8400-E29B-41D4-A716-446655440000");
-    assert(a.bytes == b.bytes, "octets")?;
-    assert(a.to_string() == b.to_string(), "hex")?;
+    assert!(a.bytes == b.bytes, "octets");
+    assert!(a.to_string() == b.to_string(), "hex");
 }
 
 test("two v4 draws differ") {
     let a = must_v4();
     let b = must_v4();
-    assert(a.to_string() != b.to_string(), "distinct")?;
+    assert!(a.to_string() != b.to_string(), "distinct");
 }
 
 test("v1 version nibble and variant") {
     let u = must_v1();
-    assert(u.version() == 1, "version")?;
-    assert(u.variant() == 2, "variant 10")?;
+    assert!(u.version() == 1, "version");
+    assert!(u.variant() == 2, "variant 10");
     let s = u.to_string();
     let again = must_parse(s);
-    assert(again.to_string() == s, "v1 round-trip")?;
+    assert!(again.to_string() == s, "v1 round-trip");
     let node0: int = u.bytes[10] as int;
-    assert((node0 & 1) == 1, "multicast node")?;
+    assert!((node0 & 1) == 1, "multicast node");
 }
 
 test("v6 version nibble and variant") {
     let u = must_v6();
-    assert(u.version() == 6, "version")?;
-    assert(u.variant() == 2, "variant 10")?;
+    assert!(u.version() == 6, "version");
+    assert!(u.variant() == 2, "variant 10");
     let s = u.to_string();
     let again = must_parse(s);
-    assert(again.to_string() == s, "v6 round-trip")?;
+    assert!(again.to_string() == s, "v6 round-trip");
 }
 
 test("v1 and v6 share clock seq and node") {
@@ -146,18 +147,18 @@ test("v1 and v6 share clock seq and node") {
     let b = must_v6();
     let i = 8;
     while i < 16 {
-        assert(a.bytes[i] == b.bytes[i], "shared clock/node")?;
+        assert!(a.bytes[i] == b.bytes[i], "shared clock/node");
         i = i + 1;
     }
 }
 
 test("v7 version nibble and variant") {
     let u = must_v7();
-    assert(u.version() == 7, "version")?;
-    assert(u.variant() == 2, "variant 10")?;
+    assert!(u.version() == 7, "version");
+    assert!(u.variant() == 2, "variant 10");
     let s = u.to_string();
     let again = must_parse(s);
-    assert(again.to_string() == s, "v7 round-trip")?;
+    assert!(again.to_string() == s, "v7 round-trip");
 }
 
 test("v7 unix ms not decreasing across sleep_ms") {
@@ -169,5 +170,5 @@ test("v7 unix ms not decreasing across sleep_ms") {
     let b = must_v7();
     let t0 = unix_ms48(a);
     let t1 = unix_ms48(b);
-    assert(t1 >= t0, "v7 time not decreasing")?;
+    assert!(t1 >= t0, "v7 time not decreasing");
 }
