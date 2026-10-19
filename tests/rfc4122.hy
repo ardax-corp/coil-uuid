@@ -103,7 +103,7 @@ test("v4 rfc variant bits 10xx") {
     let u = must_v4();
     assert!(u.variant() == 2, "variant 10");
     let b = u.bytes;
-    assert!(len(b) == 16, "16 bytes");
+    assert!(b.len() == 16, "16 bytes");
     let nibble = (b[8] as int) / 16;
     assert!(nibble >= 8, "variant nibble 8-b");
     assert!(nibble <= 11, "variant nibble not c-f");
