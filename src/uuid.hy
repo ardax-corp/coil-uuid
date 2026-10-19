@@ -80,7 +80,7 @@ fn copy16(Vec<byte> src) -> Vec<byte> {
 }
 
 fn take16(Vec<byte> src) -> Result<Uuid, UuidError> {
-    if len(src) != 16 {
+    if src.len() != 16 {
         raise UuidError::Invalid;
     }
     return new Uuid(copy16(src));
@@ -100,7 +100,7 @@ fn entropy(int n) -> Result<Vec<byte>, UuidError> {
         Result::Ok(b) => b,
         Result::Err(_) => raise UuidError::Entropy,
     };
-    if len(raw) != n {
+    if raw.len() != n {
         raise UuidError::Entropy;
     }
     return raw;
@@ -167,7 +167,7 @@ fn fill_clock_node(Vec<byte> b) {
 }
 
 fn parse_hyphenated(Vec<byte> raw) -> Result<Uuid, UuidError> {
-    if len(raw) != 36 {
+    if raw.len() != 36 {
         raise UuidError::Invalid;
     }
     if raw[8] != "-" || raw[13] != "-" || raw[18] != "-" || raw[23] != "-" {
