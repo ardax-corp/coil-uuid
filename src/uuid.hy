@@ -1,15 +1,18 @@
 // RFC 4122 / RFC 9562 UUID. `Uuid` is 16 bytes (`int` is i64 — never one 128-bit int).
 // Entropy is `crypto::random_bytes`. Time is coil-time `timestamp()`. Hex is 8-4-4-4-12.
 
-use crypto::{random_bytes};
+use crypto::{random_bytes, CryptoError};
 use string::{from_bytes, to_bytes};
-use time::{timestamp, Timestamp};
+use time::{timestamp, Timestamp, TimeError};
 
 /// Parse, entropy, or clock failure.
 enum UuidError {
+    /// Not a hyphenated `8-4-4-4-12` UUID.
     Invalid,
-    Entropy,
-    Time,
+    /// The CSPRNG failed (or returned too few bytes: `CryptoError::InvalidLength`).
+    Entropy(CryptoError),
+    /// The clock failed.
+    Time(TimeError),
 }
 
 fn gregorian_offset() -> int {
@@ -98,10 +101,10 @@ fn set_rfc_bits(Vec<byte> b, int version) {
 fn entropy(int n) -> Result<Vec<byte>, UuidError> {
     let raw = match random_bytes(n) {
         Result::Ok(b) => b,
-        Result::Err(_) => raise UuidError::Entropy,
+        Result::Err(e) => raise UuidError::Entropy(e),
     };
     if raw.len() != n {
-        raise UuidError::Entropy;
+        raise UuidError::Entropy(CryptoError::InvalidLength);
     }
     return raw;
 }
@@ -109,7 +112,7 @@ fn entropy(int n) -> Result<Vec<byte>, UuidError> {
 fn now_ts() -> Result<Timestamp, UuidError> {
     return match timestamp() {
         Result::Ok(t) => t,
-        Result::Err(_) => raise UuidError::Time,
+        Result::Err(e) => raise UuidError::Time(e),
     };
 }
 
