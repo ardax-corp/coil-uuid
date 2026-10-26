@@ -19,7 +19,7 @@ Generators call public [coil-crypto](https://github.com/ardax-corp/coil-crypto) 
 
 v2 (DCE) and v8 (custom) are omitted.
 
-Clock failure is `UuidError::Time`. CSPRNG failure is `UuidError::Entropy`. Malformed input is `UuidError::Invalid`.
+Clock failure is `UuidError::Time(TimeError)`. CSPRNG failure is `UuidError::Entropy(CryptoError)`. Malformed input is `UuidError::Invalid`.
 
 ## Sibling checkout
 
@@ -72,8 +72,8 @@ match v7() {
         let _ = u.version() == 7 && u.variant() == 2;
     },
     Result::Err(e) => match e {
-        UuidError::Entropy => {},
-        UuidError::Time => {},
+        UuidError::Entropy(_) => {},
+        UuidError::Time(_) => {},
         default => {},
     },
 }

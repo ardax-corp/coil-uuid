@@ -14,7 +14,7 @@ let s = id.to_string();
 let again = parse(s)?;
 ```
 
-`Uuid` is 16 bytes. Coil `int` is i64 — the octets are a `Vec<byte>`, not one integer. `to_string` is lowercase `8-4-4-4-12` hex (not `Show`). `parse` requires that hyphenated form (hex case-insensitive). Generators set the version nibble and RFC variant bits `10xx`. Crypto failure is `UuidError::Entropy`. Clock failure is `UuidError::Time`.
+`Uuid` is 16 bytes. Coil `int` is i64 — the octets are a `Vec<byte>`, not one integer. `to_string` is lowercase `8-4-4-4-12` hex (not `Show`). `parse` requires that hyphenated form (hex case-insensitive). Generators set the version nibble and RFC variant bits `10xx`. Crypto failure is `UuidError::Entropy(CryptoError)`. Clock failure is `UuidError::Time(TimeError)`.
 
 | Name | Role |
 |------|------|
