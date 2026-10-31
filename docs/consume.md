@@ -1,8 +1,8 @@
 # Consuming coil-uuid
 
-This package is `uuid`. `use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError}` resolves from `src/uuid.hy`. This GitHub repository is **private**; clone with credentials that can read `ardax-corp/coil-uuid`.
+This package is `uuid`. `use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError}` resolves from `src/uuid.hy`.
 
-Generators call public [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (CSPRNG). Time-based versions call public [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. coil reads no `coil.toml`: `--root` must include crypto `src/` and time `src/` so `use crypto` / `use time` resolve. The crypto grant is `--allow-dload crypto` plus `--dload-trusted crypto` (or `--dload-pin crypto=SHA256`); `--ffi-search-path` locates `libcrypto`. coil-time is pure Coil (HostInvoke clocks); there is no `--allow-dload time` and no `libtime`.
+Generators call [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (CSPRNG). Time-based versions call [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. coil reads no `coil.toml`: `--root` must include crypto `src/` and time `src/` so `use crypto` / `use time` resolve. The crypto grant is `--allow-dload crypto` plus `--dload-trusted crypto` (or `--dload-pin crypto=SHA256`); `--ffi-search-path` locates `libcrypto`. coil-time is pure Coil (HostInvoke clocks); there is no `--allow-dload time` and no `libtime`.
 
 ## Versions
 
@@ -23,13 +23,14 @@ Clock failure is `UuidError::Time(TimeError)`. CSPRNG failure is `UuidError::Ent
 
 ## Sibling checkout
 
-Clone this private repo next to your project, coil-crypto, and coil-time. Build `libcrypto` from the crypto package root (`make -C ../coil-crypto`). Grant only crypto dload:
+Clone this repo, coil-crypto, and coil-time next to your project. Build `libcrypto` from the crypto package root (`make -C ../coil-crypto`). Grant only crypto dload:
 
 ```bash
 coil test \
   --allow-dload crypto --dload-trusted crypto \
   --ffi-search-path ../coil-crypto/native \
-  --root ../coil-uuid/src --root ../coil-crypto/src --root ../coil-time/src
+  --root ../coil-uuid/src --root ../coil-crypto/src --root ../coil-time/src \
+  --root ../coil-stdlib/src
 ```
 
 Then:
@@ -50,7 +51,7 @@ let again = parse("550e8400-e29b-41d4-a716-446655440000")?;
 spool add uuid --git https://github.com/ardax-corp/coil-uuid.git --rev <commit SHA>
 ```
 
-spool would write `coil.lock`, link `.spool/deps/{uuid,crypto,time}` and pass their `--root`s. Today this fails: this repo's `coil.toml` declares `crypto` and `time` as git deps with no `version` or `rev`, neither repo has tags, so spool finds no matching tag. Until they are tagged (or pinned here), use the sibling checkout. With spool, the consumer `coil.toml` still needs the crypto grant and search path:
+This repo has no tags yet, so pin a commit with `--rev`. spool writes `coil.lock`, links `.spool/deps/{uuid,crypto,time}` and passes their `--root`s; this repo's `coil.toml` follows the default branch of coil-crypto and coil-time (`version = "latest"`). spool does not build natives: build `libcrypto` in a coil-crypto checkout (`make`) and give the consumer `coil.toml` the crypto grant and search path:
 
 ```toml
 [ffi]

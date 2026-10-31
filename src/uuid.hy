@@ -1,3 +1,5 @@
+// uuid: generate (versions 1, 4, 6, 7), parse and format RFC 4122 / RFC 9562 UUIDs.
+//
 // RFC 4122 / RFC 9562 UUID. `Uuid` is 16 bytes (`int` is i64 — never one 128-bit int).
 // Entropy is `crypto::random_bytes`. Time is coil-time `timestamp()`. Hex is 8-4-4-4-12.
 
@@ -5,7 +7,22 @@ use crypto::{random_bytes, CryptoError};
 use string::{from_bytes, to_bytes};
 use time::{timestamp, Timestamp, TimeError};
 
-/// Parse, entropy, or clock failure.
+/// Why a UUID could not be parsed or generated.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{parse, UuidError};
+/// # use tests::assert;
+/// let invalid = match parse("not-a-uuid") {
+///     Result::Ok(_) => false,
+///     Result::Err(e) => match e {
+///         UuidError::Invalid => true,
+///         default => false,
+///     },
+/// };
+/// assert!(invalid);
+/// ```
 enum UuidError {
     /// Not a hyphenated `8-4-4-4-12` UUID.
     Invalid,
@@ -28,10 +45,29 @@ static let node3 = 0;
 static let node4 = 0;
 static let node5 = 0;
 
-/// 16-octet RFC 4122 UUID. Field is `pub` so `#[derive(Eq)]` can compare it
-/// (`Hash` is not derived: prelude `Hash` covers primitives, not `Vec<byte>`).
+/// A 128-bit UUID, stored as its 16 octets in network (big-endian) order.
+///
+/// Make one with `v1`, `v4`, `v6`, `v7` or `parse`, and format it with
+/// `to_string`. Two `Uuid`s are `==` when their octets are equal. `Uuid` does
+/// not implement `Hash`, so key a map by `to_string()` instead.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{parse, Uuid};
+/// # use tests::assert;
+/// let u = match parse("550e8400-e29b-41d4-a716-446655440000") {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "parse failed",
+/// };
+/// assert!(u.bytes.len() == 16 && u.bytes[0] == 85 as byte);
+/// assert!(u.version() == 4 && u.variant() == 2);
+/// ```
+// `bytes` is `pub` so `#[derive(Eq)]` can compare it (`Hash` is not derived:
+// prelude `Hash` covers primitives, not `Vec<byte>`).
 #[derive(Eq)]
 class Uuid {
+    /// The 16 octets, most significant first.
     pub bytes: Vec<byte>,
 }
 
@@ -201,7 +237,27 @@ fn parse_hyphenated(Vec<byte> raw) -> Result<Uuid, UuidError> {
     return take16(out)?;
 }
 
-/// RFC 4122 version-4 UUID (random). Entropy is `crypto::random_bytes`.
+/// Generates a random (version 4) UUID.
+///
+/// 122 of the 128 bits come from `crypto::random_bytes`, the OS CSPRNG; the
+/// rest are the version and variant bits.
+///
+/// # Errors
+///
+/// Returns `UuidError::Entropy` when the random source fails.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{v4};
+/// # use tests::assert;
+/// let id = match v4() {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "v4 failed",
+/// };
+/// assert!(id.version() == 4 && id.variant() == 2);
+/// assert!(id.to_string().len() == 36);
+/// ```
 fn v4() -> Result<Uuid, UuidError> {
     let raw = entropy(16)?;
     let b = copy16(raw);
@@ -209,8 +265,30 @@ fn v4() -> Result<Uuid, UuidError> {
     return new Uuid(b);
 }
 
-/// RFC 4122 version-1 UUID (Gregorian 100ns + clock seq + 48-bit node).
-/// Node is 6 random bytes with the multicast bit set (not a host MAC).
+/// Generates a time-based (version 1) UUID.
+///
+/// The UUID holds the current time in 100 ns ticks since 1582-10-15, a
+/// 14-bit clock sequence and a 48-bit node. The node is 6 random bytes with
+/// the multicast bit set (never the host MAC); the node and clock sequence are
+/// drawn once per process and shared with `v6`. Prefer `v7` for new
+/// time-ordered IDs: v1 does not sort by time as bytes or text.
+///
+/// # Errors
+///
+/// Returns `UuidError::Entropy` when the random source fails (first call
+/// only) and `UuidError::Time` when the clock fails.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{v1};
+/// # use tests::assert;
+/// let id = match v1() {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "v1 failed",
+/// };
+/// assert!(id.version() == 1 && id.variant() == 2);
+/// ```
 fn v1() -> Result<Uuid, UuidError> {
     ensure_v1_node()?;
     let ts = now_ts()?;
@@ -227,7 +305,28 @@ fn v1() -> Result<Uuid, UuidError> {
     return new Uuid(b);
 }
 
-/// RFC 9562 version-6 UUID (time-reordered v1). Shares v1 clock seq and node.
+/// Generates a reordered time-based (version 6) UUID.
+///
+/// The same fields as `v1`, with the timestamp stored most significant bits
+/// first so that IDs sort by creation time. Shares the clock sequence and node
+/// with `v1`.
+///
+/// # Errors
+///
+/// Returns `UuidError::Entropy` when the random source fails (first call
+/// only) and `UuidError::Time` when the clock fails.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{v6};
+/// # use tests::assert;
+/// let id = match v6() {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "v6 failed",
+/// };
+/// assert!(id.version() == 6 && id.variant() == 2);
+/// ```
 fn v6() -> Result<Uuid, UuidError> {
     ensure_v1_node()?;
     let ts = now_ts()?;
@@ -244,7 +343,29 @@ fn v6() -> Result<Uuid, UuidError> {
     return new Uuid(b);
 }
 
-/// RFC 9562 version-7 UUID (unix milliseconds + random).
+/// Generates a Unix-time-ordered (version 7) UUID.
+///
+/// The first 48 bits are the Unix time in milliseconds and the remaining bits
+/// (apart from version and variant) are random, so IDs sort by creation time
+/// to the millisecond. IDs made in the same millisecond are not ordered among
+/// themselves.
+///
+/// # Errors
+///
+/// Returns `UuidError::Time` when the clock fails and `UuidError::Entropy`
+/// when the random source fails.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{v7};
+/// # use tests::assert;
+/// let id = match v7() {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "v7 failed",
+/// };
+/// assert!(id.version() == 7 && id.variant() == 2);
+/// ```
 fn v7() -> Result<Uuid, UuidError> {
     let ts = now_ts()?;
     let ms: int = ts.millis();
@@ -255,13 +376,48 @@ fn v7() -> Result<Uuid, UuidError> {
     return new Uuid(b);
 }
 
-/// Parse `8-4-4-4-12` hex (hyphens required). Case-insensitive.
+/// Parses the hyphenated `8-4-4-4-12` hex form of a UUID.
+///
+/// Hex digits may be upper or lower case. The hyphens are required; braces,
+/// a `urn:uuid:` prefix and the 32-digit form without hyphens are rejected.
+/// Any version and variant are accepted.
+///
+/// # Errors
+///
+/// Returns `UuidError::Invalid` when `s` is not 36 characters in that form.
+///
+/// # Examples
+///
+/// ```
+/// use uuid::{parse};
+/// # use tests::assert;
+/// let u = match parse("550E8400-E29B-41D4-A716-446655440000") {
+///     Result::Ok(u) => u,
+///     Result::Err(_) => panic "parse failed",
+/// };
+/// assert!(u.to_string() == "550e8400-e29b-41d4-a716-446655440000");
+/// assert!(parse("550e8400e29b41d4a716446655440000").is_err());
+/// ```
 fn parse(string s) -> Result<Uuid, UuidError> {
     return parse_hyphenated(to_bytes(s))?;
 }
 
 impl Uuid {
-    /// Canonical lowercase `8-4-4-4-12` hex. Not `Show` (scalar enums print ints).
+    /// Returns the canonical lowercase `8-4-4-4-12` hex form, which `parse`
+    /// reads back.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use uuid::{parse};
+    /// # use tests::assert;
+    /// let text = "123e4567-e89b-12d3-a456-426614174000";
+    /// let u = match parse(text) {
+    ///     Result::Ok(u) => u,
+    ///     Result::Err(_) => panic "parse failed",
+    /// };
+    /// assert!(u.to_string() == text);
+    /// ```
     pub fn to_string() -> string {
         let out: Vec<byte> = Vec::new();
         let i = 0;
@@ -278,13 +434,15 @@ impl Uuid {
         };
     }
 
-    /// RFC 4122 version nibble (high nibble of octet 6).
+    /// Returns the version number: the high nibble of octet 6 (`1`, `4`, `6`
+    /// or `7` for the UUIDs this package generates).
     pub fn version() -> int {
         let v: int = self.bytes[6] as int;
         return v / 16;
     }
 
-    /// High two bits of octet 8 (`2` is RFC 4122 variant `10xx`).
+    /// Returns the two high bits of octet 8: `2` (binary `10`) is the RFC 4122
+    /// variant that every generator here sets.
     pub fn variant() -> int {
         let v: int = self.bytes[8] as int;
         return v / 64;
