@@ -3,10 +3,7 @@ name = "uuid"
 version = "0.1.0"
 
 [module]
-roots = ["./src", "../coil-crypto/src", "../coil-time/src"]
-
-[ffi]
-search_paths = ["../coil-crypto/native"]
+roots = ["./src"]
 
 [dependencies]
 crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", version = "latest", trusted = true }
