@@ -9,5 +9,5 @@ roots = ["./src", "../coil-crypto/src", "../coil-time/src"]
 search_paths = ["../coil-crypto/native"]
 
 [dependencies]
-crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", trusted = true }
-time = { git = "https://github.com/ardax-corp/coil-time.git" }
+crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", version = "latest", trusted = true }
+time = { git = "https://github.com/ardax-corp/coil-time.git", version = "latest" }
