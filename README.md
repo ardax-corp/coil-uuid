@@ -70,7 +70,7 @@ coil --root ../coil-uuid/src --root ../coil-time/src \
   --root ../coil-stdlib/src main.coil
 ```
 
-The builtin `entropy` module needs a coil built from main after coil-lang#COILPR (archive 6.15).
+The builtin `entropy` module needs a coil built from main after coil-lang#2186 (archive 6.15).
 
 Details in [docs/consume.md](docs/consume.md).
 
