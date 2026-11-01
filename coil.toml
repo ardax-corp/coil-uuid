@@ -6,5 +6,4 @@ version = "0.1.0"
 roots = ["./src"]
 
 [dependencies]
-crypto = { git = "https://github.com/ardax-corp/coil-crypto.git", version = "latest", trusted = true }
 time = { git = "https://github.com/ardax-corp/coil-time.git", version = "latest" }

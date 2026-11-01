@@ -22,27 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout coil-crypto
-        uses: actions/checkout@v4
-        with:
-          repository: ardax-corp/coil-crypto
-          path: .ci/coil-crypto
-          submodules: false
-
       - name: Checkout coil-time
         uses: actions/checkout@v4
         with:
           repository: ardax-corp/coil-time
           path: .ci/coil-time
           submodules: false
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: .ci/coil-crypto/native
 
       # coil comes from the coil-lang `edge` release (a snapshot of its main,
       # rebuilt after every green coil-lang CI run) instead of a source build.
@@ -52,19 +37,8 @@ jobs:
         with:
           stdlib: true
 
-      - name: Native crypto
-        run: make
-        working-directory: .ci/coil-crypto
-
-      - name: Place libcrypto.so on FFI search path
-        working-directory: .ci/coil-crypto
-        run: cp native/target/release/libcrypto.so native/
-
       - name: Language harness (`coil test`)
         run: |
           coil test \
-            --allow-dload crypto --dload-trusted crypto \
-            --ffi-search-path .ci/coil-crypto/native \
-            --root .ci/coil-crypto/src \
             --root .ci/coil-time/src \
             --root "${{ steps.coil.outputs.stdlib }}"
