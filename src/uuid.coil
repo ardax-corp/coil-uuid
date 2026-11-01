@@ -1,9 +1,10 @@
 // uuid: generate (versions 1, 4, 6, 7), parse and format RFC 4122 / RFC 9562 UUIDs.
 //
 // RFC 4122 / RFC 9562 UUID. `Uuid` is 16 bytes (`int` is i64 — never one 128-bit int).
-// Entropy is `crypto::random_bytes`. Time is coil-time `timestamp()`. Hex is 8-4-4-4-12.
+// Entropy is the builtin `entropy::bytes` (OS CSPRNG). Time is coil-time
+// `timestamp()`. Hex is 8-4-4-4-12.
 
-use crypto::{random_bytes, CryptoError};
+use entropy::{bytes as os_bytes};
 use string::{from_bytes, to_bytes};
 use time::{timestamp, Timestamp, TimeError};
 
@@ -26,8 +27,6 @@ use time::{timestamp, Timestamp, TimeError};
 enum UuidError {
     /// Not a hyphenated `8-4-4-4-12` UUID.
     Invalid,
-    /// The CSPRNG failed (or returned too few bytes: `CryptoError::InvalidLength`).
-    Entropy(CryptoError),
     /// The clock failed.
     Time(TimeError),
 }
@@ -134,16 +133,6 @@ fn set_rfc_bits(Vec<byte> b, int version) {
     b[8] = nc as byte;
 }
 
-fn entropy(int n) -> Result<Vec<byte>, UuidError> {
-    let raw = match random_bytes(n) {
-        Result::Ok(b) => b,
-        Result::Err(e) => raise UuidError::Entropy(e),
-    };
-    if raw.len() != n {
-        raise UuidError::Entropy(CryptoError::InvalidLength);
-    }
-    return raw;
-}
 
 fn now_ts() -> Result<Timestamp, UuidError> {
     return match timestamp() {
@@ -176,11 +165,11 @@ fn gregorian_100ns(Timestamp ts) -> int {
     return (ts.nanos() / 100) + gregorian_offset();
 }
 
-fn ensure_v1_node() -> Result<(), UuidError> {
+fn ensure_v1_node() {
     if v1_ready != 0 {
-        return ();
+        return;
     }
-    let raw = entropy(8)?;
+    let raw = os_bytes(8);
     let first: int = raw[0] as int;
     node0 = first | 1;
     node1 = raw[1] as int;
@@ -192,7 +181,6 @@ fn ensure_v1_node() -> Result<(), UuidError> {
     let lo: int = raw[7] as int;
     clock_seq = ((hi * 256) + lo) & 16383;
     v1_ready = 1;
-    return ();
 }
 
 fn fill_clock_node(Vec<byte> b) {
@@ -239,12 +227,13 @@ fn parse_hyphenated(Vec<byte> raw) -> Result<Uuid, UuidError> {
 
 /// Generates a random (version 4) UUID.
 ///
-/// 122 of the 128 bits come from `crypto::random_bytes`, the OS CSPRNG; the
-/// rest are the version and variant bits.
+/// 122 of the 128 bits come from `entropy::bytes`, the OS CSPRNG; the rest
+/// are the version and variant bits.
 ///
 /// # Errors
 ///
-/// Returns `UuidError::Entropy` when the random source fails.
+/// Never returns an error today; the `Result` keeps the signature in line
+/// with the time-based generators. A failing OS random source panics.
 ///
 /// # Examples
 ///
@@ -259,8 +248,7 @@ fn parse_hyphenated(Vec<byte> raw) -> Result<Uuid, UuidError> {
 /// assert!(id.to_string().len() == 36);
 /// ```
 fn v4() -> Result<Uuid, UuidError> {
-    let raw = entropy(16)?;
-    let b = copy16(raw);
+    let b = os_bytes(16);
     set_rfc_bits(b, 4);
     return new Uuid(b);
 }
@@ -275,8 +263,7 @@ fn v4() -> Result<Uuid, UuidError> {
 ///
 /// # Errors
 ///
-/// Returns `UuidError::Entropy` when the random source fails (first call
-/// only) and `UuidError::Time` when the clock fails.
+/// Returns `UuidError::Time` when the clock fails.
 ///
 /// # Examples
 ///
@@ -290,7 +277,7 @@ fn v4() -> Result<Uuid, UuidError> {
 /// assert!(id.version() == 1 && id.variant() == 2);
 /// ```
 fn v1() -> Result<Uuid, UuidError> {
-    ensure_v1_node()?;
+    ensure_v1_node();
     let ts = now_ts()?;
     let ticks: int = gregorian_100ns(ts);
     let time_low: int = ticks & 4294967295;
@@ -313,8 +300,7 @@ fn v1() -> Result<Uuid, UuidError> {
 ///
 /// # Errors
 ///
-/// Returns `UuidError::Entropy` when the random source fails (first call
-/// only) and `UuidError::Time` when the clock fails.
+/// Returns `UuidError::Time` when the clock fails.
 ///
 /// # Examples
 ///
@@ -328,7 +314,7 @@ fn v1() -> Result<Uuid, UuidError> {
 /// assert!(id.version() == 6 && id.variant() == 2);
 /// ```
 fn v6() -> Result<Uuid, UuidError> {
-    ensure_v1_node()?;
+    ensure_v1_node();
     let ts = now_ts()?;
     let ticks: int = gregorian_100ns(ts);
     let time_high: int = ticks >> 28;
@@ -352,8 +338,7 @@ fn v6() -> Result<Uuid, UuidError> {
 ///
 /// # Errors
 ///
-/// Returns `UuidError::Time` when the clock fails and `UuidError::Entropy`
-/// when the random source fails.
+/// Returns `UuidError::Time` when the clock fails.
 ///
 /// # Examples
 ///
@@ -369,8 +354,7 @@ fn v6() -> Result<Uuid, UuidError> {
 fn v7() -> Result<Uuid, UuidError> {
     let ts = now_ts()?;
     let ms: int = ts.millis();
-    let raw = entropy(16)?;
-    let b = copy16(raw);
+    let b = os_bytes(16);
     set_be(b, 0, ms, 6);
     set_rfc_bits(b, 7);
     return new Uuid(b);
