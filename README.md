@@ -2,7 +2,7 @@
 
 RFC 4122 / RFC 9562 UUIDs for [coil](https://github.com/ardax-corp/coil-lang): generate versions 1, 4, 6 and 7, parse the hyphenated form and format it back. Package name is `uuid`, so `use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError}` resolves here.
 
-Entropy comes from [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (the OS CSPRNG, through coil-crypto's native library). Time-based versions use [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()`.
+Entropy comes from coil's builtin `entropy::bytes` (the OS CSPRNG; no native library and no `--allow-*` grant). Time-based versions use [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()`. The package is pure Coil.
 
 ## Example
 
@@ -28,7 +28,7 @@ fn main() {
 }
 ```
 
-`Uuid` is 16 bytes. Coil `int` is i64, so the octets are a `Vec<byte>`, not one integer. `to_string` is lowercase `8-4-4-4-12` hex (not `Show`). `parse` requires that hyphenated form (hex case-insensitive). Generators set the version nibble and RFC variant bits `10xx`. Crypto failure is `UuidError::Entropy(CryptoError)`. Clock failure is `UuidError::Time(TimeError)`.
+`Uuid` is 16 bytes. Coil `int` is i64, so the octets are a `Vec<byte>`, not one integer. `to_string` is lowercase `8-4-4-4-12` hex (not `Show`). `parse` requires that hyphenated form (hex case-insensitive). Generators set the version nibble and RFC variant bits `10xx`. A failing OS random source panics (it never falls back to a weaker one). Clock failure is `UuidError::Time(TimeError)`.
 
 ## API
 
@@ -42,9 +42,9 @@ fn main() {
 | `Uuid.to_string` | Canonical lowercase hex |
 | `Uuid.version` / `Uuid.variant` | RFC nibbles (`variant == 2` is `10xx`) |
 | `Uuid.bytes` | The 16 octets (`Vec<byte>`) |
-| `UuidError` | `Invalid`, `Entropy`, `Time` |
+| `UuidError` | `Invalid`, `Time` |
 
-v3 / v5 are omitted: coil-crypto has no MD5 or SHA-1. v2 and v8 are omitted.
+v3 / v5 (MD5 / SHA-1 name-based), v2 and v8 are omitted.
 
 ## Layout
 
@@ -61,16 +61,16 @@ With [spool](https://github.com/ardax-corp/spool):
 spool add uuid --git https://github.com/ardax-corp/coil-uuid.git --rev <commit SHA>
 ```
 
-This repo has no tags yet, so pin a commit with `--rev`. spool also fetches coil-crypto and coil-time. coil-crypto's native library has to be built and granted (`--allow-dload crypto` plus `--dload-trusted crypto` or `--dload-pin`); coil-time is pure Coil.
+This repo has no tags yet, so pin a commit with `--rev`. spool also fetches coil-time (pure Coil). Nothing needs building or granting.
 
-With plain coil, clone this repo, coil-crypto and coil-time next to your project, build `libcrypto` (`make -C ../coil-crypto`) and pass each `src/` as `--root`:
+With plain coil, clone this repo and coil-time next to your project and pass each `src/` as `--root`:
 
 ```bash
-coil --root ../coil-uuid/src --root ../coil-crypto/src --root ../coil-time/src \
-  --root ../coil-stdlib/src \
-  --ffi-search-path ../coil-crypto/native \
-  --allow-dload crypto --dload-trusted crypto main.coil
+coil --root ../coil-uuid/src --root ../coil-time/src \
+  --root ../coil-stdlib/src main.coil
 ```
+
+The builtin `entropy` module needs a coil built from main after coil-lang#2186 (archive 6.15).
 
 Details in [docs/consume.md](docs/consume.md).
 
