@@ -2,7 +2,7 @@
 
 This package is `uuid`. `use uuid::{v1, v4, v6, v7, parse, Uuid, UuidError}` resolves from `src/uuid.coil`.
 
-Generators call [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random_bytes` (CSPRNG). Time-based versions call [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. coil reads no `coil.toml`: `--root` must include crypto `src/` and time `src/` so `use crypto` / `use time` resolve. The crypto grant is `--allow-dload crypto` plus `--dload-trusted crypto` (or `--dload-pin crypto=SHA256`); `--ffi-search-path` locates `libcrypto`. coil-time is pure Coil (HostInvoke clocks); there is no `--allow-dload time` and no `libtime`.
+Random bits come from coil's builtin `entropy::bytes(n)` (the OS CSPRNG, a HostInvoke like `clock`: no native library, no `dload`, no `--allow-*` grant). Time-based versions call [coil-time](https://github.com/ardax-corp/coil-time) `timestamp()` (`Result<Timestamp, TimeError>`). Use `ts.millis()`, `ts.nanos()`, and `ts.secs()` on that value. coil reads no `coil.toml`: `--root` must include time `src/` so `use time` resolves. coil-time is pure Coil too, so the whole package is.
 
 ## Versions
 
@@ -15,21 +15,19 @@ Generators call [coil-crypto](https://github.com/ardax-corp/coil-crypto) `random
 
 `Uuid` is 16 `byte`s. `parse` / `to_string` are hyphenated `8-4-4-4-12`. RFC variant bits are `10xx` (`variant() == 2`). Version nibble is 1, 4, 6, or 7.
 
-**v3 / v5 are not shipped.** coil-crypto has sha256, sha512, blake3, hmac, and random — not MD5 or SHA-1. Name-based UUIDs stay omitted rather than adding a hash native.
+**v3 / v5 are not shipped.** They need MD5 / SHA-1, which nothing in the coil ecosystem provides yet. Both are plain computation, so they can be added in pure Coil.
 
 v2 (DCE) and v8 (custom) are omitted.
 
-Clock failure is `UuidError::Time(TimeError)`. CSPRNG failure is `UuidError::Entropy(CryptoError)`. Malformed input is `UuidError::Invalid`.
+Clock failure is `UuidError::Time(TimeError)`. Malformed input is `UuidError::Invalid`. A failing OS random source panics: `entropy::bytes` never falls back to a weaker source.
 
 ## Sibling checkout
 
-Clone this repo, coil-crypto, and coil-time next to your project. Build `libcrypto` from the crypto package root (`make -C ../coil-crypto`). Grant only crypto dload:
+Clone this repo and coil-time next to your project:
 
 ```bash
 coil test \
-  --allow-dload crypto --dload-trusted crypto \
-  --ffi-search-path ../coil-crypto/native \
-  --root ../coil-uuid/src --root ../coil-crypto/src --root ../coil-time/src \
+  --root ../coil-uuid/src --root ../coil-time/src \
   --root ../coil-stdlib/src
 ```
 
@@ -51,15 +49,7 @@ let again = parse("550e8400-e29b-41d4-a716-446655440000")?;
 spool add uuid --git https://github.com/ardax-corp/coil-uuid.git --rev <commit SHA>
 ```
 
-This repo has no tags yet, so pin a commit with `--rev`. spool writes `coil.lock`, links `.spool/deps/{uuid,crypto,time}` and passes their `--root`s; this repo's `coil.toml` follows the default branch of coil-crypto and coil-time (`version = "latest"`). spool does not build natives: build `libcrypto` in a coil-crypto checkout (`make`) and give the consumer `coil.toml` the crypto grant and search path:
-
-```toml
-[ffi]
-search_paths = ["../coil-crypto/native"]
-allow = ["crypto"]
-```
-
-plus `trusted = true` on a `crypto` dependency (or a `[[package.native]]` `sha256` row for it in `coil.lock`).
+This repo has no tags yet, so pin a commit with `--rev`. spool writes `coil.lock`, links `.spool/deps/{uuid,time}` and passes their `--root`s; this repo's `coil.toml` follows the default branch of coil-time (`version = "latest"`). Nothing needs building or granting.
 
 ## Call it
 
@@ -73,7 +63,6 @@ match v7() {
         let _ = u.version() == 7 && u.variant() == 2;
     },
     Result::Err(e) => match e {
-        UuidError::Entropy(_) => {},
         UuidError::Time(_) => {},
         default => {},
     },
